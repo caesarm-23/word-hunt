@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Word Hunt</title>
+<meta name="description" content="A family word-guessing game. Play solo or with friends on your phones.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;800&display=swap">
+<style>
+/* Layout: one centered play column; each screen swaps in below the header. */
+:root {
+  --bg: #eef2f7;
+  --surface: #ffffff;
+  --ink: #1d2a44;
+  --muted: #5d6a82;
+  --line: #c7d0de;
+  --hit: #138a7e;      /* right letter, right spot */
+  --near: #e88a1a;     /* right letter, wrong spot */
+  --miss: #7b8496;     /* not in the word */
+  --miss-key: #b5545c; /* keyboard letters not in the word */
+  --on-color: #ffffff;
+  --accent: #3b5bdb;
+  --on-accent: #ffffff;
+  --key: #dde3ed;
+  --star: #e0a400;
+  --danger: #c0392b;
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141a28; --surface: #1d2537; --ink: #eef2fb; --muted: #a3aec4; --line: #3a4560;
+    --hit: #1aa595; --near: #f09a2c; --miss: #4b546a; --miss-key: #9a3f4a; --on-color: #ffffff;
+    --accent: #7d97ff; --on-accent: #10162a; --key: #2c364d; --star: #ffc93c; --danger: #ff7a6b;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-top: 16px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.logo { font-family: var(--display); font-weight: 700; font-size: 2rem; margin: 0; background: none; border: 0; color: var(--ink); cursor: pointer; padding: 0; }
+.logo span { color: var(--accent); }
+.chip { font-weight: 800; font-size: 0.9rem; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chip b { font-family: var(--display); letter-spacing: 0.12em; color: var(--ink); }
+button { font-family: var(--body); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.screen { display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.card h2 { font-family: var(--display); font-weight: 600; font-size: 1.35rem; margin: 0; text-wrap: balance; }
+.card p { margin: 0; color: var(--muted); line-height: 1.5; }
+.primary {
+  font: 800 1rem var(--body); background: var(--accent); color: var(--on-accent);
+  border: 0; border-radius: 999px; padding: 13px 24px; cursor: pointer;
+}
+.ghost { font: 700 0.9rem var(--body); background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+.row-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.row-btns > * { flex: 1 1 140px; }
+label.field { display: grid; gap: 6px; font-weight: 800; font-size: 0.9rem; }
+input[type=text] {
+  font: 700 1.1rem var(--body); padding: 12px 14px; border-radius: 10px; border: 2px solid var(--line);
+  background: var(--bg); color: var(--ink); width: 100%;
+}
+#join-code { text-transform: uppercase; letter-spacing: 0.2em; font-family: var(--display); }
+.or { text-align: center; color: var(--muted); font-weight: 800; font-size: 0.85rem; }
+
+.seg { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: 999px; border: 1px solid var(--line); flex-wrap: wrap; }
+.seg button {
+  flex: 1 1 auto; font: 700 0.9rem var(--body); border: 0; background: transparent; color: var(--muted);
+  padding: 8px 12px; border-radius: 999px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.setting { display: grid; gap: 6px; }
+.setting > span { font-weight: 800; font-size: 0.9rem; }
+.note { font-size: 0.85rem; color: var(--muted); }
+
+.code-big { font-family: var(--display); font-weight: 700; font-size: 2.6rem; letter-spacing: 0.25em; text-align: center; color: var(--accent); }
+.players { display: flex; flex-wrap: wrap; gap: 8px; }
+.player { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-weight: 800; }
+.player.me { border-color: var(--accent); }
+
+.howto { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.howto summary { font-family: var(--display); font-weight: 600; font-size: 1.05rem; cursor: pointer; }
+.howto p { margin: 8px 0; color: var(--muted); line-height: 1.5; }
+.legend { display: grid; gap: 8px; margin-top: 8px; }
+.legend div { display: flex; align-items: center; gap: 10px; line-height: 1.35; }
+.legend .tile { width: 34px; height: 34px; font-size: 1.1rem; flex: none; }
+.pts { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.pts div { background: var(--bg); border-radius: 8px; padding: 6px 8px; font-size: 0.85rem; }
+.pts b { display: block; font-size: 1rem; }
+
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bar-info { font-weight: 800; color: var(--muted); }
+.timer { font-family: var(--display); font-weight: 700; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.timer.low { color: var(--danger); }
+.opps { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+.opp { flex: none; display: grid; gap: 4px; justify-items: center; font-size: 0.75rem; font-weight: 800; color: var(--muted); }
+.dots { display: grid; gap: 2px; }
+.dots div { display: flex; gap: 2px; }
+.dots i { width: 8px; height: 8px; border-radius: 2px; background: var(--line); }
+.dots i.hit { background: var(--hit); } .dots i.near { background: var(--near); } .dots i.miss { background: var(--miss); }
+
+.status { min-height: 1.5em; text-align: center; font-weight: 800; color: var(--muted); }
+.board { display: grid; gap: 7px; justify-content: center; }
+.row { display: grid; gap: 7px; grid-auto-flow: column; }
+.row.shake { animation: shake 0.4s; }
+.tile {
+  width: min(16vw, 62px); aspect-ratio: 1; max-width: 100%;
+  display: grid; place-items: center; border: 2px solid var(--line); border-radius: 10px;
+  background: var(--surface); font-family: var(--display); font-weight: 700; font-size: 1.9rem;
+  text-transform: uppercase; color: var(--ink); user-select: none;
+}
+.board.four .tile { width: min(19vw, 66px); }
+.tile.filled { border-color: var(--muted); animation: pop 0.12s; }
+.tile.hit, .tile.near, .tile.miss { color: var(--on-color); border-color: transparent; }
+.tile.hit { background: var(--hit); }
+.tile.near { background: var(--near); }
+.tile.miss { background: var(--miss); }
+.tile.flip { animation: flip 0.45s ease both; }
+
+.keyboard { display: grid; gap: 7px; }
+.krow { display: flex; gap: 5px; justify-content: center; }
+.key {
+  flex: 1 1 0; max-width: 46px; height: 54px; border: 0; border-radius: 8px; background: var(--key); color: var(--ink);
+  font: 800 1.05rem var(--body); text-transform: uppercase; cursor: pointer; padding: 0;
+}
+.key.wide { max-width: 72px; flex-grow: 1.6; font-size: 0.8rem; }
+.key.hit { background: var(--hit); color: var(--on-color); }
+.key.near { background: var(--near); color: var(--on-color); }
+.key.miss { background: var(--miss-key); color: var(--on-color); }
+
+.end { text-align: center; }
+.big-word { font-family: var(--display); font-size: 1.6rem; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; text-align: center; }
+.stars { display: flex; justify-content: center; gap: 6px; font-size: 2.2rem; line-height: 1; }
+.stars span { color: var(--line); }
+.stars span.on { color: var(--star); animation: starpop 0.4s both; }
+.points-won { font-family: var(--display); font-size: 1.8rem; color: var(--ink); }
+.stats { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tools { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.countdown { font-family: var(--display); font-size: 4rem; text-align: center; color: var(--accent); line-height: 1; }
+
+table.score { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.score th { text-align: left; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 6px 4px; }
+table.score td { padding: 8px 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+table.score td.num, table.score th.num { text-align: right; }
+table.score tr.me td { font-weight: 800; }
+.result-note { font-size: 0.85rem; color: var(--muted); }
+.podium { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: end; gap: 8px; text-align: center; }
+.podium div { background: var(--bg); border-radius: 10px 10px 4px 4px; padding: 10px 4px; display: grid; gap: 4px; min-width: 0; }
+.podium .p1 { min-height: 130px; border: 2px solid var(--star); }
+.podium .p2 { min-height: 105px; }
+.podium .p3 { min-height: 85px; }
+.podium b { overflow-wrap: anywhere; }
+.medal { font-size: 1.6rem; }
+.wordlist { display: grid; gap: 8px; }
+.wordrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg); border-radius: 10px; flex-wrap: wrap; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); font-weight: 800; padding: 10px 16px; border-radius: 999px; max-width: calc(100% - 32px);
+  text-align: center; z-index: 20;
+}
+
+@keyframes pop { 50% { transform: scale(1.08); } }
+@keyframes flip { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+@keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+@keyframes starpop { 0% { transform: scale(0); } 70% { transform: scale(1.3); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .tile, .row, .stars span { animation: none !important; } }
+@media (max-width: 380px) { .logo { font-size: 1.6rem; } .key { height: 48px; font-size: 0.95rem; } }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <button class="logo" id="go-home" aria-label="Word Hunt home">Word <span>Hunt</span></button>
+    <div class="chip" id="room-chip" hidden></div>
+  </header>
+
+  <!-- Home -->
+  <section class="screen" id="home" hidden>
+    <div class="card" id="rejoin" hidden></div>
+    <div class="card">
+      <h2>Play solo</h2>
+      <p>Practice on your own. Fewer guesses earn more points.</p>
+      <div class="row-btns">
+        <button class="primary" data-solo="easy">Easy</button>
+        <button class="primary" data-solo="normal">Normal</button>
+        <button class="primary" data-solo="hard">Hard</button>
+      </div>
+      <div class="stats" id="solo-stats"></div>
+    </div>
+    <div class="card">
+      <h2>Play with friends</h2>
+      <p>Everyone plays the same words on their own phone. No accounts needed.</p>
+      <label class="field" for="name">Your name
+        <input type="text" id="name" maxlength="20" autocomplete="nickname" placeholder="e.g. Maya">
+      </label>
+      <button class="primary" id="host-btn">Host a game</button>
+      <div class="or">or join one</div>
+      <label class="field" for="join-code">Game code
+        <input type="text" id="join-code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD">
+      </label>
+      <button class="primary" id="join-btn">Join game</button>
+    </div>
+  </section>
+
+  <!-- Lobby -->
+  <section class="screen" id="lobby" hidden>
+    <div class="card">
+      <h2>Game code</h2>
+      <div class="code-big" id="lobby-code"></div>
+      <p>Friends join by opening this site and typing the code, or with the link.</p>
+      <div class="row-btns">
+        <button class="ghost" id="copy-link">Copy invite link</button>
+        <button class="ghost" id="share-link" hidden>Share</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 id="players-title">Players</h2>
+      <div class="players" id="lobby-players"></div>
+    </div>
+    <div class="card" id="settings"></div>
+    <button class="primary" id="start-btn" hidden>Start game</button>
+    <div class="status" id="lobby-wait"></div>
+  </section>
+
+  <!-- Game board (solo and multiplayer) -->
+  <section class="screen" id="game" hidden>
+    <div class="bar" id="game-bar"></div>
+    <div class="opps" id="opps" hidden></div>
+    <details class="howto" id="howto">
+      <summary>How to play</summary>
+      <p>Guess the secret word. Type a real word and press <b>Enter</b>. The tiles change color to give you clues.</p>
+      <div class="legend">
+        <div><span class="tile hit">C</span><span><b>Teal</b> means the letter is in the word <b>and</b> in the right spot.</span></div>
+        <div><span class="tile near">A</span><span><b>Orange</b> means the letter is in the word, but in a <b>different</b> spot.</span></div>
+        <div><span class="tile miss">T</span><span><b>Gray</b> means that letter is <b>not</b> in the word at all. It turns red on the keyboard so you know not to use it again.</span></div>
+      </div>
+      <p><b>Points:</b> the fewer guesses you take, the more you earn. Normal is worth 1.5×, Hard 2×. Each hint costs 100.</p>
+      <div class="pts" id="pts-table"></div>
+    </details>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="board" id="board" aria-label="Guesses"></div>
+    <div class="card end" id="end" hidden></div>
+    <div class="keyboard" id="keyboard"></div>
+    <div class="tools">
+      <button class="ghost" id="hint">Give me a hint (−100)</button>
+      <button class="ghost" id="newgame">New word</button>
+    </div>
+  </section>
+
+  <!-- Live round results, async challenge, and final scores -->
+  <section class="screen" id="results" hidden></section>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="words.js"></script>
+<script>
+// ---- Setup ------------------------------------------------------------------
+const SUPABASE_URL = "https://htntsinuggjrulphsejt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Ugsn56rN4xNNTeYkW1TSGA_6A-n6DBx";
+
+const $ = id => document.getElementById(id);
+const LEN = { easy: 4, normal: 5, hard: 5 };
+const TRIES = { 4: 7, 5: 6 };
+const LABEL = { easy: "Easy", normal: "Normal", hard: "Hard" };
+const MULT = { easy: 1, normal: 1.5, hard: 2 };
+const BASE = [1000, 800, 600, 400, 250, 100, 50];
+const PRAISE = ["Psychic! First try!", "Genius!", "Super smart!", "Great job!", "Nice work!", "Phew, you got it!", "Just in time!"];
+const RANK = { miss: 1, near: 2, hit: 3 };
+const PAT = { h: "hit", n: "near", m: "miss" };
+const STAR_MAX = 5;
+const PLACE = ["first", "second", "third", "fourth", "fifth"];
+
+function load(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } }
+function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch {} }
+const TOKEN = load("wordhunt-token", null) || (() => { const t = crypto.randomUUID(); save("wordhunt-token", t); return t; })();
+let soloStats = load("wordhunt-solo", { played: 0, won: 0, streak: 0, best: 0, points: 0, bestGame: 0 });
+
+const fmt = n => n.toLocaleString();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const starsFor = n => Math.max(1, STAR_MAX + 1 - n);
+function setHTML(el, html) { if (el._html !== html) { el._html = html; el.innerHTML = html; } }
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.hidden = true, 3200);
+}
+function show(id) {
+  for (const s of document.querySelectorAll(".screen")) s.hidden = s.id !== id;
+  current = id;
+}
+let current = "home";
+
+// Points table in How to play.
+$("pts-table").innerHTML = BASE.map((p, i) => `<div>${i + 1} ${i ? "guesses" : "guess"}<b>${fmt(p)}</b></div>`).join("");
+
+// ---- Board and keyboard (shared by solo and multiplayer) ---------------------
+let game = null; // { kind, len, tries, guesses: [{word, res}], current, finished, busy, locked, hintsUsed }
+
+// Score a guess. Exact matches first, then wrong-spot letters, so repeated letters are counted fairly.
+function score(guess, answer) {
+  const res = Array(guess.length).fill("miss");
+  const left = {};
+  for (let i = 0; i < answer.length; i++) {
+    if (guess[i] === answer[i]) res[i] = "hit";
+    else left[answer[i]] = (left[answer[i]] || 0) + 1;
+  }
+  for (let i = 0; i < guess.length; i++) {
+    if (res[i] !== "hit" && left[guess[i]]) { res[i] = "near"; left[guess[i]]--; }
+  }
+  return res;
+}
+
+function setStatus(msg) { $("status").textContent = msg; }
+
+function renderBoard(flipRow = -1) {
+  const board = $("board");
+  board.classList.toggle("four", game.len === 4);
+  board.innerHTML = "";
+  for (let r = 0; r < game.tries; r++) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const g = game.guesses[r];
+    const word = g ? g.word : (r === game.guesses.length ? game.current : "");
+    for (let c = 0; c < game.len; c++) {
+      const t = document.createElement("div");
+      t.className = "tile";
+      const ch = word[c] || "";
+      t.textContent = ch;
+      if (ch) t.classList.add("filled");
+      if (g) {
+        t.classList.add(g.res[c]);
+        if (r === flipRow) { t.classList.add("flip"); t.style.animationDelay = `${c * 0.12}s`; }
+      }
+      row.appendChild(t);
+    }
+    board.appendChild(row);
+  }
+  renderKeys();
+}
+
+function renderKeys() {
+  const colors = {};
+  for (const g of game.guesses) g.word.split("").forEach((ch, i) => {
+    if (!colors[ch] || RANK[g.res[i]] > RANK[colors[ch]]) colors[ch] = g.res[i];
+  });
+  const kb = $("keyboard");
+  kb.innerHTML = "";
+  for (const r of ["qwertyuiop", "asdfghjkl", "+zxcvbnm-"]) {
+    const row = document.createElement("div");
+    row.className = "krow";
+    for (const ch of r) {
+      const b = document.createElement("button");
+      b.className = "key";
+      if (ch === "+") { b.textContent = "Enter"; b.classList.add("wide"); b.dataset.k = "Enter"; }
+      else if (ch === "-") { b.textContent = "⌫"; b.classList.add("wide"); b.dataset.k = "Backspace"; b.setAttribute("aria-label", "Delete letter"); }
+      else { b.textContent = ch; b.dataset.k = ch; if (colors[ch]) b.classList.add(colors[ch]); }
+      row.appendChild(b);
+    }
+    kb.appendChild(row);
+  }
+}
+
+function shakeRow() {
+  const row = $("board").children[game.guesses.length];
+  if (!row) return;
+  row.classList.remove("shake"); void row.offsetWidth; row.classList.add("shake");
+}
+
+function cheer(res) {
+  const hits = res.filter(r => r === "hit").length, nears = res.filter(r => r === "near").length;
+  if (hits >= game.len - 1) return "So close!";
+  if (hits) return `${hits} letter${hits > 1 ? "s" : ""} in the right spot!`;
+  if (nears) return `${nears} letter${nears > 1 ? "s are" : " is"} in the word somewhere.`;
+  return "No matches. Now you know letters to skip!";
+}
+
+function press(k) {
+  if (!game || current !== "game") return;
+  if (game.finished) { if (k === "Enter" && game.kind === "solo") newSolo(game.mode); return; }
+  if (game.busy || game.locked) return;
+  if (k === "Backspace") { game.current = game.current.slice(0, -1); renderBoard(); return; }
+  if (k === "Enter") { submit(); return; }
+  if (/^[a-z]$/i.test(k) && game.current.length < game.len) {
+    game.current += k.toLowerCase();
+    if (game.kind === "solo") setStatus("");
+    renderBoard();
+  }
+}
+
+async function submit() {
+  const word = game.current;
+  if (word.length < game.len) { setStatus(`Use ${game.len} letters. You have ${word.length} so far.`); shakeRow(); return; }
+  if (!VALID[game.len].has(word)) { setStatus(`"${word.toUpperCase()}" isn't a word we know. Try a real word!`); shakeRow(); return; }
+  if (game.guesses.length === 0) $("howto").open = false;
+  if (game.kind === "solo") { soloGuess(word); return; }
+  game.busy = true;
+  try { await multiGuess(word); }
+  catch (e) { setStatus(e.message); shakeRow(); }
+  finally { game.busy = false; }
+}
+
+function nextHintPos() {
+  const known = new Set(game.hintsUsed);
+  game.guesses.forEach(g => g.res.forEach((r, i) => { if (r === "hit") known.add(i); }));
+  const open = [...Array(game.len).keys()].filter(i => !known.has(i));
+  return open.length ? open[Math.floor(Math.random() * open.length)] : -1;
+}
+
+async function hint() {
+  if (!game || game.finished || game.busy || game.locked) return;
+  const i = nextHintPos();
+  if (i < 0) { setStatus("You already know every letter. Put them together!"); return; }
+  let letter;
+  if (game.kind === "solo") letter = game.answer[i];
+  else {
+    try { game.busy = true; letter = await rpc("wordhunt_hint", { p_code: room, p_token: TOKEN, p_round: game.round, p_pos: i + 1 }); }
+    catch (e) { setStatus(e.message); return; }
+    finally { game.busy = false; }
+  }
+  game.hintsUsed.push(i);
+  setStatus(`Hint: the ${PLACE[i]} letter is "${letter.toUpperCase()}". (−100 points)`);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.matches && e.target.matches("input, textarea")) return;
+  if (e.target.closest && e.target.closest("summary, button:not(.key)") && (e.key === "Enter" || e.key === " ")) return;
+  if (e.key === "Enter" || e.key === "Backspace" || /^[a-zA-Z]$/.test(e.key)) {
+    if (current !== "game") return;
+    e.preventDefault(); press(e.key);
+  }
+});
+$("keyboard").addEventListener("click", e => { const b = e.target.closest(".key"); if (b) { press(b.dataset.k); b.blur(); } });
+$("hint").onclick = e => { hint(); e.currentTarget.blur(); };
+$("newgame").onclick = e => { newSolo(game.mode); e.currentTarget.blur(); };
+
+// ---- Solo -------------------------------------------------------------------
+function soloPoints(n, mode, hints, streak) {
+  const base = Math.max(10, Math.round(BASE[Math.min(n, 7) - 1] * MULT[mode]) - 100 * hints);
+  return { base, bonus: Math.min(250, 50 * Math.max(0, streak - 1)) };
+}
+
+function newSolo(mode) {
+  const len = LEN[mode];
+  const list = WORDS[mode].filter(w => w !== game?.answer);
+  game = { kind: "solo", mode, len, tries: TRIES[len], answer: list[Math.floor(Math.random() * list.length)],
+           guesses: [], current: "", finished: false, hintsUsed: [] };
+  leaveRoom(true);
+  setHTML($("game-bar"), `<div class="seg" role="group" aria-label="Difficulty" style="flex:1">${["easy", "normal", "hard"].map(m =>
+    `<button data-mode="${m}" aria-pressed="${m === mode}">${LABEL[m]}</button>`).join("")}</div>`);
+  $("opps").hidden = true;
+  $("end").hidden = true;
+  $("newgame").hidden = false;
+  $("hint").hidden = false;
+  setStatus(`Find the ${len}-letter word. You have ${TRIES[len]} tries.`);
+  show("game");
+  renderBoard();
+}
+$("game-bar").addEventListener("click", e => {
+  const b = e.target.closest("button[data-mode]");
+  if (b) { newSolo(b.dataset.mode); b.blur(); }
+});
+
+function soloGuess(word) {
+  const res = score(word, game.answer);
+  game.guesses.push({ word, res });
+  game.current = "";
+  renderBoard(game.guesses.length - 1);
+  if (word === game.answer) finishSolo(true);
+  else if (game.guesses.length >= game.tries) finishSolo(false);
+  else {
+    const left = game.tries - game.guesses.length;
+    setStatus(cheer(res) + ` ${left} ${left === 1 ? "try" : "tries"} left.`);
+  }
+}
+
+function finishSolo(won) {
+  game.finished = true;
+  const s = soloStats, n = game.guesses.length;
+  s.played++;
+  let pts = null;
+  if (won) {
+    s.won++; s.streak++; s.best = Math.max(s.best, s.streak);
+    pts = soloPoints(n, game.mode, game.hintsUsed.length, s.streak);
+    s.points += pts.base + pts.bonus;
+    s.bestGame = Math.max(s.bestGame, pts.base + pts.bonus);
+  } else s.streak = 0;
+  save("wordhunt-solo", s);
+  const end = $("end");
+  end.innerHTML = `
+    <h2>${won ? PRAISE[n - 1] : "Good try!"}</h2>
+    ${won ? `<div class="stars" aria-label="${starsFor(n)} of ${STAR_MAX} stars">${Array.from({ length: STAR_MAX }, (_, i) =>
+      `<span class="${i < starsFor(n) ? "on" : ""}" style="animation-delay:${i * 0.12}s">★</span>`).join("")}</div>
+    <div class="points-won">+${fmt(pts.base + pts.bonus)} points</div>
+    <div class="result-note">${n} ${n === 1 ? "guess" : "guesses"} on ${LABEL[game.mode]}${game.hintsUsed.length ? `, ${game.hintsUsed.length} hint${game.hintsUsed.length > 1 ? "s" : ""}` : ""}${pts.bonus ? ` · +${pts.bonus} streak bonus` : ""}</div>`
+    : `<div>The word was</div>`}
+    <div class="big-word">${game.answer}</div>
+    <div class="stats">${fmt(s.points)} total points · Best game ${fmt(s.bestGame)} · Streak ${s.streak}</div>
+    <button class="primary" id="again">Play another word</button>`;
+  end.hidden = false;
+  setTimeout(() => end.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" }), 700);
+  setStatus(won ? "You did it!" : "Let's try a new one.");
+  $("again").onclick = () => newSolo(game.mode);
+}
+
+function renderHome() {
+  const s = soloStats;
+  $("solo-stats").textContent = s.played ? `${fmt(s.points)} points · Won ${s.won} of ${s.played} · Best game ${fmt(s.bestGame)}` : "";
+  $("name").value = $("name").value || load("wordhunt-name", "");
+  const saved = load("wordhunt-room", null);
+  const rj = $("rejoin");
+  rj.hidden = !saved || saved === room;
+  if (saved) rj.innerHTML = `<h2>Game ${esc(saved)} is still going</h2><div class="row-btns"><button class="primary" id="rejoin-btn">Go back to it</button><button class="ghost" id="forget-btn">Leave that game</button></div>`;
+  if (saved) {
+    $("rejoin-btn").onclick = () => enterRoom(saved);
+    $("forget-btn").onclick = () => { save("wordhunt-room", null); renderHome(); };
+  }
+  show("home");
+}
+document.querySelectorAll("[data-solo]").forEach(b => b.onclick = () => newSolo(b.dataset.solo));
+$("go-home").onclick = () => { if (room) { stopPolling(); room = null; $("room-chip").hidden = true; } game = null; renderHome(); };
+
+// ---- Multiplayer: server calls ------------------------------------------------
+async function rpc(fn, args) {
+  let r;
+  try {
+    r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: "POST", headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" }, body: JSON.stringify(args)
+    });
+  } catch { throw new Error("Can't reach the game server. Check your internet connection."); }
+  const text = await r.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!r.ok) throw new Error(data?.message || "Something went wrong. Try again.");
+  return data;
+}
+
+let room = null;       // current game code
+let S = null;          // latest state from the server
+let offset = 0;        // server clock minus this phone's clock
+let pollTimer = null, tickTimer = null, refreshing = false;
+let settingsHold = 0;  // ignore server settings briefly after the host changes one
+let openingRound = 0, openFailed = {};
+const now = () => Date.now() + offset;
+
+function playerName() {
+  const n = $("name").value.trim();
+  if (!n) { toast("Type your name first."); $("name").focus(); return null; }
+  save("wordhunt-name", n);
+  return n;
+}
+
+$("host-btn").onclick = async () => {
+  const name = playerName(); if (!name) return;
+  try { const code = await rpc("wordhunt_create_room", { p_token: TOKEN, p_name: name }); enterRoom(code); }
+  catch (e) { toast(e.message); }
+};
+$("join-btn").onclick = async () => {
+  const name = playerName(); if (!name) return;
+  const code = $("join-code").value.trim().toUpperCase();
+  if (code.length !== 4) { toast("Game codes have 4 letters."); $("join-code").focus(); return; }
+  try { await rpc("wordhunt_join", { p_code: code, p_token: TOKEN, p_name: name }); enterRoom(code); }
+  catch (e) { toast(e.message); }
+};
+$("join-code").addEventListener("keydown", e => { if (e.key === "Enter") $("join-btn").click(); });
+
+async function enterRoom(code) {
+  room = code; save("wordhunt-room", code);
+  openFailed = {}; game = null;
+  try { history.replaceState(null, "", `?room=${code}`); } catch {}
+  await refresh();
+  if (!room) return;
+  stopPolling();
+  pollTimer = setInterval(refresh, 1500);
+  tickTimer = setInterval(tick, 250);
+}
+function stopPolling() { clearInterval(pollTimer); clearInterval(tickTimer); pollTimer = tickTimer = null; }
+function leaveRoom(quiet) {
+  if (!room) return;
+  stopPolling();
+  if (!quiet) save("wordhunt-room", null);
+  room = null; S = null;
+  $("room-chip").hidden = true;
+  try { history.replaceState(null, "", location.pathname); } catch {}
+}
+
+async function refresh() {
+  if (!room || refreshing) return;
+  refreshing = true;
+  try {
+    const st = await rpc("wordhunt_state", { p_code: room, p_token: TOKEN });
+    offset = Date.parse(st.now) - Date.now();
+    if (settingsHold > Date.now() && S) st.room = { ...st.room, ...pick(S.room, ["mode", "difficulty", "rounds", "seconds", "hints", "window_hours"]) };
+    S = st;
+    route();
+  } catch (e) {
+    if (/No game found|Join the game/.test(e.message)) { leaveRoom(); save("wordhunt-room", null); toast(e.message); renderHome(); }
+  } finally { refreshing = false; }
+}
+const pick = (o, keys) => Object.fromEntries(keys.map(k => [k, o[k]]));
+
+// ---- Multiplayer: helpers -----------------------------------------------------
+const isHost = () => S?.me.is_host;
+const playOf = (id, rd) => S.plays.find(p => p.id === id && p.round === rd);
+const myPlay = rd => playOf(S.me.id, rd);
+const nameOf = id => S.players.find(p => p.id === id)?.name || "Someone";
+const hostName = () => S.players.find(p => p.is_host)?.name || "the host";
+const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const roundEnd = rd => Date.parse(S.room.round_started_at) + S.room.seconds * 1000;
+function roundOver(rd) {
+  if (now() > roundEnd(rd) + 2500) return true;
+  return S.players.every(p => playOf(p.id, rd)?.finished);
+}
+function totals() {
+  const t = Object.fromEntries(S.players.map(p => [p.id, { id: p.id, name: p.name, points: 0, solved: 0, played: 0, guesses: 0 }]));
+  for (const p of S.plays) {
+    const row = t[p.id]; if (!row || !p.finished) continue;
+    row.points += p.points; row.played++;
+    if (p.solved) { row.solved++; row.guesses += p.attempts; }
+  }
+  return Object.values(t).sort((a, b) => b.points - a.points || b.solved - a.solved || a.guesses - b.guesses);
+}
+function resultText(p) {
+  if (!p) return S.room.mode === "async" && S.room.status === "playing" ? "Not played yet" : "Didn't play";
+  if (!p.finished) return `Playing · ${p.attempts} ${p.attempts === 1 ? "guess" : "guesses"}`;
+  if (p.solved) return `✓ ${p.attempts} ${p.attempts === 1 ? "guess" : "guesses"} · ${p.secs}s${p.hints ? ` · ${p.hints} hint${p.hints > 1 ? "s" : ""}` : ""}`;
+  return p.attempts >= S.room.tries ? "Out of guesses" : "Time ran out";
+}
+function scoreTable(rows, cols) {
+  return `<div style="overflow-x:auto"><table class="score"><thead><tr>${cols.map(c => `<th class="${c.num ? "num" : ""}">${c.h}</th>`).join("")}</tr></thead><tbody>${
+    rows.map((r, i) => `<tr class="${r.id === S.me.id ? "me" : ""}">${cols.map(c => `<td class="${c.num ? "num" : ""}">${c.v(r, i)}</td>`).join("")}</tr>`).join("")
+  }</tbody></table></div>`;
+}
+function roundTable(rd) {
+  const rows = S.players.map(p => ({ id: p.id, name: p.name, play: playOf(p.id, rd) }))
+    .sort((a, b) => (b.play?.points || 0) - (a.play?.points || 0) || (b.play?.finished ? 1 : 0) - (a.play?.finished ? 1 : 0));
+  return scoreTable(rows, [
+    { h: "Player", v: r => esc(r.name) + (r.id === S.me.id ? " (you)" : "") },
+    { h: "Result", v: r => `<span class="result-note">${resultText(r.play)}</span>` },
+    { h: "Points", num: true, v: r => r.play?.finished ? fmt(r.play.points) : "–" },
+  ]);
+}
+function totalsTable() {
+  return scoreTable(totals(), [
+    { h: "#", v: (r, i) => i + 1 },
+    { h: "Player", v: r => esc(r.name) + (r.id === S.me.id ? " (you)" : "") },
+    { h: "Solved", num: true, v: r => `${r.solved}/${S.room.rounds}` },
+    { h: "Points", num: true, v: r => fmt(r.points) },
+  ]);
+}
+
+// ---- Multiplayer: screens -----------------------------------------------------
+function route() {
+  if (!S) return;
+  const r = S.room;
+  $("room-chip").hidden = false;
+  setHTML($("room-chip"), `<span>Game <b>${r.code}</b></span><button class="ghost" id="leave-btn">Leave</button>`);
+  const lb = $("leave-btn"); if (lb) lb.onclick = () => { leaveRoom(); game = null; renderHome(); };
+
+  if (r.status === "lobby") { if (game?.kind === "multi") game = null; openFailed = {}; renderLobby(); return; }
+
+  // Keep the board up while this phone is still playing a word.
+  if (game?.kind === "multi" && !game.finished) { if (current !== "game") show("game"); renderOpps(); return; }
+
+  if (r.status === "done") { renderFinal(); return; }
+
+  if (r.mode === "live") {
+    const rd = r.current_round;
+    const mine = myPlay(rd);
+    const alreadyPlayed = game?.kind === "multi" && game.round === rd;
+    if (!alreadyPlayed && !(mine && mine.finished) && !roundOver(rd) && !openFailed[rd]) { openRound(rd); return; }
+    renderLiveRound(rd);
+  } else {
+    renderChallenge();
+  }
+}
+
+function seg(key, options, value, disabled) {
+  return `<div class="seg" role="group">${options.map(([v, label]) =>
+    `<button data-set="${key}" data-val="${v}" aria-pressed="${String(v) === String(value)}" ${disabled ? "disabled" : ""}>${label}</button>`).join("")}</div>`;
+}
+
+function renderLobby() {
+  const r = S.room, host = isHost();
+  $("lobby-code").textContent = r.code;
+  $("share-link").hidden = !navigator.share;
+  $("players-title").textContent = `Players (${S.players.length})`;
+  setHTML($("lobby-players"), S.players.map(p =>
+    `<span class="player ${p.id === S.me.id ? "me" : ""}">${esc(p.name)}${p.is_host ? " · host" : ""}${p.id === S.me.id ? " (you)" : ""}</span>`).join(""));
+  setHTML($("settings"), `
+    <h2>Settings</h2>
+    ${host ? "" : `<p>${esc(hostName())} is choosing the settings.</p>`}
+    <div class="setting"><span>How to play</span>${seg("mode", [["live", "Live: all at once"], ["async", "Async: anytime"]], r.mode, !host)}
+      <div class="note">${r.mode === "live"
+        ? "Everyone plays each word at the same time. The host starts each word."
+        : "Everyone plays the same words whenever they like before the game closes."}</div></div>
+    <div class="setting"><span>Difficulty</span>${seg("difficulty", [["easy", "Easy"], ["normal", "Normal"], ["hard", "Hard"]], r.difficulty, !host)}
+      <div class="note">${{ easy: "4-letter kid words, 7 tries.", normal: "5-letter kid words, 6 tries. Worth 1.5×.", hard: "Tricky 5-letter words for grown-ups. Worth 2×." }[r.difficulty]}</div></div>
+    <div class="setting"><span>Time per word</span>${seg("seconds", [[60, "1 min"], [120, "2 min"], [180, "3 min"]], r.seconds, !host)}</div>
+    <div class="setting"><span>Words</span>${seg("rounds", [[3, "3"], [5, "5"], [10, "10"]], r.rounds, !host)}</div>
+    <div class="setting"><span>Hints</span>${seg("hints", [[true, "On (−100 each)"], [false, "Off"]], r.hints, !host)}</div>
+    ${r.mode === "async" ? `<div class="setting"><span>Game stays open for</span>${seg("window_hours", [[1, "1 hour"], [24, "1 day"], [168, "1 week"]], r.window_hours, !host)}</div>` : ""}`);
+  $("start-btn").hidden = !host;
+  $("start-btn").textContent = r.mode === "live" ? "Start game" : "Open the challenge";
+  $("lobby-wait").textContent = host ? "" : `Waiting for ${hostName()} to start…`;
+  if (current !== "lobby") show("lobby");
+}
+$("settings").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-set]");
+  if (!b || !isHost()) return;
+  const v = b.dataset.val;
+  S.room[b.dataset.set] = v === "true" ? true : v === "false" ? false : /^\d+$/.test(v) ? +v : v;
+  settingsHold = Date.now() + 2500;
+  renderLobby();
+  const r = S.room;
+  try {
+    await rpc("wordhunt_update_room", { p_code: r.code, p_token: TOKEN, p_mode: r.mode, p_difficulty: r.difficulty,
+      p_rounds: r.rounds, p_seconds: r.seconds, p_hints: r.hints, p_window_hours: r.window_hours });
+  } catch (err) { toast(err.message); }
+});
+$("start-btn").onclick = async () => {
+  try { $("start-btn").disabled = true; await rpc("wordhunt_start", { p_code: room, p_token: TOKEN }); await refresh(); }
+  catch (e) { toast(e.message); }
+  finally { $("start-btn").disabled = false; }
+};
+function inviteLink() { return `${location.origin}${location.pathname}?room=${room}`; }
+$("copy-link").onclick = async () => {
+  try { await navigator.clipboard.writeText(inviteLink()); toast("Invite link copied."); }
+  catch { toast(inviteLink()); }
+};
+$("share-link").onclick = () => navigator.share?.({ title: "Word Hunt", text: `Join my Word Hunt game! Code: ${room}`, url: inviteLink() }).catch(() => {});
+
+async function openRound(rd) {
+  if (openingRound === rd) return;
+  openingRound = rd;
+  try {
+    const p = await rpc("wordhunt_open_round", { p_code: room, p_token: TOKEN, p_round: rd });
+    const len = S.room.word_len;
+    game = {
+      kind: "multi", round: rd, len, tries: S.room.tries, current: "", hintsUsed: [], busy: false,
+      guesses: p.guesses.map((w, i) => ({ word: w, res: p.patterns[i].split("").map(c => PAT[c]) })),
+      startMs: Date.parse(p.started_at), endMs: Date.parse(p.started_at) + S.room.seconds * 1000,
+      finished: p.finished, solved: p.solved, points: p.points, word: p.word,
+    };
+    offset = Date.parse(p.now) - Date.now();
+    if (!game.finished) startMultiBoard();
+    route();
+  } catch (e) {
+    openFailed[rd] = true;
+    toast(e.message);
+    route();
+  } finally { openingRound = 0; }
+}
+
+function startMultiBoard() {
+  $("end").hidden = true;
+  $("newgame").hidden = true;
+  $("hint").hidden = !S.room.hints;
+  $("howto").open = false;
+  setStatus("");
+  show("game");
+  renderBoard();
+  renderOpps();
+  tick();
+}
+
+function renderOpps() {
+  const live = S.room.mode === "live";
+  $("opps").hidden = !live || S.players.length < 2;
+  if (!live) return;
+  const len = S.room.word_len;
+  setHTML($("opps"), S.players.filter(p => p.id !== S.me.id).map(p => {
+    const play = playOf(p.id, game.round);
+    const pats = play?.patterns || [];
+    const rows = Array.from({ length: S.room.tries }, (_, i) =>
+      `<div>${Array.from({ length: len }, (_, c) => `<i class="${pats[i] ? PAT[pats[i][c]] : ""}"></i>`).join("")}</div>`).join("");
+    return `<div class="opp"><div class="dots">${rows}</div><span>${esc(p.name)}${play?.solved ? " ✓" : ""}</span></div>`;
+  }).join(""));
+}
+
+async function multiGuess(word) {
+  const r = await rpc("wordhunt_guess", { p_code: room, p_token: TOKEN, p_round: game.round, p_guess: word });
+  if (r.expired) { timeUp(); return; }
+  const res = r.pattern.split("").map(c => PAT[c]);
+  game.guesses.push({ word, res });
+  game.current = "";
+  renderBoard(game.guesses.length - 1);
+  if (r.finished) {
+    game.finished = true; game.solved = r.solved; game.points = r.points; game.word = r.word;
+    const n = game.guesses.length;
+    setStatus(r.solved ? `${PRAISE[n - 1]} +${fmt(r.points)} points` : `Out of guesses. The word was ${r.word.toUpperCase()}.`);
+    setTimeout(() => { refresh(); }, 2200);
+  } else {
+    const left = game.tries - game.guesses.length;
+    setStatus(cheer(res) + ` ${left} ${left === 1 ? "try" : "tries"} left.`);
+  }
+}
+
+function timeUp() {
+  if (game.finished) return;
+  game.finished = true; game.expired = true;
+  setStatus("Time's up!");
+  setTimeout(refresh, 2800);
+}
+
+// Runs four times a second: countdowns and the word timer.
+function tick() {
+  if (!S) return;
+  if (game?.kind === "multi" && !game.finished && current === "game") {
+    const t = now();
+    const label = `Word ${game.round} of ${S.room.rounds}`;
+    if (t < game.startMs) {
+      game.locked = true;
+      setHTML($("game-bar"), `<span class="bar-info">${label}</span><span class="timer">${mmss(S.room.seconds * 1000)}</span>`);
+      setStatus(`Get ready… ${Math.ceil((game.startMs - t) / 1000)}`);
+    } else {
+      if (game.locked) { game.locked = false; setStatus("Go! Type your first guess."); }
+      const left = game.endMs - t;
+      setHTML($("game-bar"), `<span class="bar-info">${label}</span><span class="timer ${left < 15000 ? "low" : ""}">${mmss(left)}</span>`);
+      if (left <= 0) timeUp();
+    }
+    return;
+  }
+  if (current === "results" || current === "lobby") route();
+}
+
+function renderLiveRound(rd) {
+  const r = S.room;
+  const over = roundOver(rd);
+  const mine = myPlay(rd);
+  const word = S.words[rd];
+  const last = rd >= r.rounds;
+  let me;
+  if (mine?.finished && mine.solved) me = `<div class="points-won">+${fmt(mine.points)} points</div><p>${PRAISE[mine.attempts - 1]} You solved it in ${mine.attempts} ${mine.attempts === 1 ? "guess" : "guesses"}.</p>`;
+  else if (mine?.finished || (game?.round === rd && game.finished)) me = `<p>${mine && mine.attempts >= r.tries ? "Out of guesses" : "Time ran out"} on this one. No points this round.</p>`;
+  else me = `<p>You missed this word. You'll play the next one.</p>`;
+  let action;
+  if (!over) action = `<div class="status">Waiting for everyone… ${mmss(roundEnd(rd) - now())} left</div>`;
+  else if (isHost()) action = `<button class="primary" id="next-btn">${last ? "See final results" : "Next word"}</button>`;
+  else action = `<div class="status">Waiting for ${esc(hostName())} to ${last ? "show the final results" : "start the next word"}…</div>`;
+  setHTML($("results"), `
+    <div class="card end">
+      <h2>Word ${rd} of ${r.rounds}</h2>
+      ${word ? `<div class="big-word">${word}</div>` : `<p>The word is shown when the round ends.</p>`}
+      ${me}
+    </div>
+    <div class="card"><h2>This word</h2>${roundTable(rd)}</div>
+    ${action}
+    <div class="card"><h2>Scoreboard</h2>${totalsTable()}</div>`);
+  const nb = $("next-btn");
+  if (nb) nb.onclick = async () => {
+    nb.disabled = true;
+    try { await rpc("wordhunt_next_round", { p_code: room, p_token: TOKEN }); await refresh(); }
+    catch (e) { toast(e.message); nb.disabled = false; }
+  };
+  if (current !== "results") show("results");
+}
+
+function timeLeftText(ms) {
+  const m = Math.max(0, Math.floor(ms / 60000));
+  if (m >= 60 * 24) return `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60)}h`;
+  if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
+  return `${m}m ${Math.max(0, Math.floor(ms / 1000) % 60)}s`;
+}
+
+function renderChallenge() {
+  const r = S.room;
+  const closes = Date.parse(r.closes_at);
+  const open = now() < closes;
+  let next = 0;
+  const rows = [];
+  for (let i = 1; i <= r.rounds; i++) {
+    const p = myPlay(i);
+    let right;
+    if (p?.finished) right = `<span class="result-note">${resultText(p)}</span> <b>${fmt(p.points)} pts</b>`;
+    else if (p) right = `<button class="primary" data-play="${i}">Keep playing</button>`;
+    else if (!next && open) { next = i; right = `<button class="primary" data-play="${i}">Play</button>`; }
+    else right = `<span class="result-note">${open ? "Locked" : "Not played"}</span>`;
+    if (p && !p.finished && !next) next = i;
+    rows.push(`<div class="wordrow"><b>Word ${i}${S.words[i] ? `: ${S.words[i].toUpperCase()}` : ""}</b><span>${right}</span></div>`);
+  }
+  const finishedWords = Object.keys(S.words).map(Number).sort((a, b) => a - b);
+  setHTML($("results"), `
+    <div class="card">
+      <h2>Challenge ${r.code}</h2>
+      <p>${open ? `Closes in ${timeLeftText(closes - now())}.` : "This challenge is closed."} ${LABEL[r.difficulty]} words, ${mmss(r.seconds * 1000)} per word. The timer starts when you open a word.</p>
+      <div class="row-btns"><button class="ghost" id="copy-link2">Copy invite link</button></div>
+      <div class="wordlist">${rows.join("")}</div>
+    </div>
+    <div class="card"><h2>Leaderboard</h2>${totalsTable()}</div>
+    ${finishedWords.map(i => `<div class="card"><h2>Word ${i}: ${S.words[i].toUpperCase()}</h2>${roundTable(i)}</div>`).join("")}`);
+  $("results").querySelectorAll("[data-play]").forEach(b => b.onclick = () => { openFailed = {}; openRound(+b.dataset.play); });
+  const cl = $("copy-link2"); if (cl) cl.onclick = () => $("copy-link").click();
+  if (current !== "results") show("results");
+}
+
+function renderFinal() {
+  const t = totals();
+  const medals = ["🥇", "🥈", "🥉"];
+  const podium = [1, 0, 2].map(i => t[i] ? `<div class="p${i + 1}"><span class="medal">${medals[i]}</span><b>${esc(t[i].name)}</b><span>${fmt(t[i].points)}</span></div>` : `<div class="p${i + 1}" style="visibility:hidden"></div>`).join("");
+  const words = Object.keys(S.words).map(Number).sort((a, b) => a - b);
+  setHTML($("results"), `
+    <div class="card end">
+      <h2>Final results</h2>
+      <div class="podium">${podium}</div>
+    </div>
+    <div class="card"><h2>Scoreboard</h2>${totalsTable()}</div>
+    ${isHost() ? `<button class="primary" id="rematch-btn">Play again with this group</button>` : `<div class="status">${esc(hostName())} can start a new game with this group.</div>`}
+    <div class="card"><h2>The words</h2><div class="wordlist">${words.map(i => `<div class="wordrow"><b>${i}. ${S.words[i].toUpperCase()}</b><span class="result-note">${resultText(myPlay(i))}</span></div>`).join("")}</div></div>`);
+  const rb = $("rematch-btn");
+  if (rb) rb.onclick = async () => {
+    try { await rpc("wordhunt_rematch", { p_code: room, p_token: TOKEN }); game = null; await refresh(); }
+    catch (e) { toast(e.message); }
+  };
+  if (current !== "results") show("results");
+}
+
+// ---- Start --------------------------------------------------------------------
+(function boot() {
+  const params = new URLSearchParams(location.search);
+  const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
+  const saved = load("wordhunt-room", null);
+  renderHome();
+  if (code && code === saved) { enterRoom(code); return; }
+  if (code) {
+    $("join-code").value = code;
+    if ($("name").value) $("join-btn").focus(); else $("name").focus();
+    toast(`Type your name and tap Join to play game ${code}.`);
+  }
+})();
+</script>
+</body>
+</html>
