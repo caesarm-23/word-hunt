@@ -204,7 +204,8 @@ input[type=text] {
 .end { text-align: center; }
 .big-word { font-family: var(--display); font-size: 1.6rem; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; text-align: center; }
 .stars { display: flex; justify-content: center; gap: 6px; font-size: 2.2rem; line-height: 1; }
-.stars span { color: var(--line); }
+.stars span { color: var(--line); display: block; width: 36px; height: 36px; }
+.stars svg { width: 100%; height: 100%; display: block; }
 .stars span.on { color: var(--star); animation: starpop 0.4s both; }
 .points-won { font-family: var(--display); font-size: 1.8rem; color: var(--ink); }
 .stats { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -226,7 +227,11 @@ table.score tr.me td { font-weight: 800; }
 .podium .p2 { min-height: 105px; }
 .podium .p3 { min-height: 85px; }
 .podium b { overflow-wrap: anywhere; }
-.medal { font-size: 1.6rem; }
+.medal {
+  justify-self: center; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 1.1rem var(--display); color: #1d2a44; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18);
+}
+.medal.m1 { background: #f2c230; } .medal.m2 { background: #c9d1dc; } .medal.m3 { background: #d99a62; }
 .wordlist { display: grid; gap: 8px; }
 /* Home menu: one big button per way to play. */
 .menu { display: grid; gap: 10px; }
@@ -237,14 +242,15 @@ table.score tr.me td { font-weight: 800; }
 }
 .tile-btn:hover { border-color: var(--accent); }
 .tile-btn:active { transform: scale(0.98); }
-.tile-btn .ico { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 1.7rem; background: var(--bg); }
+.tile-btn .ico { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--bg); }
+.tile-btn .ico svg { width: 28px; height: 28px; }
 .tile-btn b { display: block; font-family: var(--display); font-weight: 600; font-size: 1.25rem; }
 .tile-btn small { display: block; color: var(--muted); font-size: 0.92rem; font-weight: 600; margin-top: 2px; line-height: 1.3; }
 .tile-btn .go { margin-left: auto; color: var(--muted); font-size: 1.4rem; }
-.tile-btn[data-go="solo"] .ico { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-.tile-btn[data-go="live"] .ico { background: color-mix(in srgb, var(--hit) 24%, transparent); }
-.tile-btn[data-go="async"] .ico { background: color-mix(in srgb, var(--near) 24%, transparent); }
-.tile-btn[data-go="join"] .ico { background: color-mix(in srgb, var(--star) 24%, transparent); }
+.tile-btn[data-go="solo"] .ico { color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.tile-btn[data-go="live"] .ico { color: var(--hit); background: color-mix(in srgb, var(--hit) 24%, transparent); }
+.tile-btn[data-go="async"] .ico { color: var(--near); background: color-mix(in srgb, var(--near) 24%, transparent); }
+.tile-btn[data-go="join"] .ico { color: var(--star); background: color-mix(in srgb, var(--star) 24%, transparent); }
 .back { justify-self: start; padding: 6px 12px; }
 .diff { display: grid; gap: 10px; }
 .diff .primary small { display: block; font-weight: 600; font-size: 0.85rem; opacity: 0.85; }
@@ -277,10 +283,10 @@ table.score tr.me td { font-weight: 800; }
   <section class="screen" id="home" hidden>
     <div class="card" id="rejoin" hidden></div>
     <div class="menu" id="menu">
-      <button class="tile-btn" data-go="solo"><span class="ico" aria-hidden="true">🎯</span><span><b>Play solo</b><small>Practice on your own. Fewer guesses, more points.</small></span><span class="go" aria-hidden="true">›</span></button>
-      <button class="tile-btn" data-go="live"><span class="ico" aria-hidden="true">⚡</span><span><b>Head to head</b><small>Race friends live on the same words. Watch their boards fill in.</small></span><span class="go" aria-hidden="true">›</span></button>
-      <button class="tile-btn" data-go="async"><span class="ico" aria-hidden="true">📬</span><span><b>Send a challenge</b><small>Friends play the same words whenever they like.</small></span><span class="go" aria-hidden="true">›</span></button>
-      <button class="tile-btn" data-go="join"><span class="ico" aria-hidden="true">🔑</span><span><b>Join a game</b><small>Got a 4-letter code from a friend? Start here.</small></span><span class="go" aria-hidden="true">›</span></button>
+      <button class="tile-btn" data-go="solo"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.5"/><path d="M5 20.5c.8-3.9 3.6-6 7-6s6.2 2.1 7 6"/></svg></span><span><b>Play solo</b><small>Practice on your own. Fewer guesses, more points.</small></span><span class="go" aria-hidden="true">›</span></button>
+      <button class="tile-btn" data-go="live"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M10 3h4M12 3v3.5M18.5 6.5l1.5-1.5"/></svg></span><span><b>Head to head</b><small>Race friends live on the same words. Watch their boards fill in.</small></span><span class="go" aria-hidden="true">›</span></button>
+      <button class="tile-btn" data-go="async"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10.5 13.5"/><path d="M21 3 14.5 21l-4-7.5L3 9.5z"/></svg></span><span><b>Send a challenge</b><small>Friends play the same words whenever they like.</small></span><span class="go" aria-hidden="true">›</span></button>
+      <button class="tile-btn" data-go="join"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M9.5 16.5 14 12 9.5 7.5M14 12H4"/></svg></span><span><b>Join a game</b><small>Got a 4-letter code from a friend? Start here.</small></span><span class="go" aria-hidden="true">›</span></button>
       <div class="stats" id="solo-stats"></div>
     </div>
     <div class="card" id="p-solo" hidden>
@@ -378,6 +384,7 @@ const PRAISE = ["Psychic! First try!", "Genius!", "Super smart!", "Great job!", 
 const RANK = { miss: 1, near: 2, hit: 3 };
 const PAT = { h: "hit", n: "near", m: "miss" };
 const STAR_MAX = 5;
+const STAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 const HINT_COST = 200, MAX_HINTS = 2;
 const PLACE = ["first", "second", "third", "fourth", "fifth"];
 
@@ -622,7 +629,7 @@ function finishSolo(won) {
   end.innerHTML = `
     <h2>${won ? PRAISE[n - 1] : "Good try!"}</h2>
     ${won ? `<div class="stars" aria-label="${starsFor(n)} of ${STAR_MAX} stars">${Array.from({ length: STAR_MAX }, (_, i) =>
-      `<span class="${i < starsFor(n) ? "on" : ""}" style="animation-delay:${i * 0.12}s">★</span>`).join("")}</div>
+      `<span class="${i < starsFor(n) ? "on" : ""}" style="animation-delay:${i * 0.12}s">${STAR_SVG}</span>`).join("")}</div>
     <div class="points-won">+${fmt(pts.base + pts.bonus)} points</div>
     <div class="result-note">${n} ${n === 1 ? "guess" : "guesses"} on ${LABEL[game.mode]}${game.hintsUsed.length ? `, ${game.hintsUsed.length} hint${game.hintsUsed.length > 1 ? "s" : ""}` : ""}${pts.bonus ? ` · +${pts.bonus} streak bonus` : ""}</div>`
     : `<div>The word was</div>`}
@@ -1129,8 +1136,8 @@ function renderChallenge() {
 
 function renderFinal() {
   const t = totals();
-  const medals = ["🥇", "🥈", "🥉"];
-  const podium = [1, 0, 2].map(i => t[i] ? `<div class="p${i + 1}"><span class="medal">${medals[i]}</span><b>${esc(t[i].name)}</b><span>${fmt(t[i].points)}</span></div>` : `<div class="p${i + 1}" style="visibility:hidden"></div>`).join("");
+  
+  const podium = [1, 0, 2].map(i => t[i] ? `<div class="p${i + 1}"><span class="medal m${i + 1}">${i + 1}</span><b>${esc(t[i].name)}</b><span>${fmt(t[i].points)}</span></div>` : `<div class="p${i + 1}" style="visibility:hidden"></div>`).join("");
   const words = Object.keys(S.words).map(Number).sort((a, b) => a - b);
   setHTML($("results"), `
     <div class="card end">
