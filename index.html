@@ -43,7 +43,7 @@ html, body { margin: 0; }
 /* Taps never zoom the page: no double-tap zoom, no text selection on the board or keys. */
 html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.board, .keyboard, .opps, .timerbar { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.board, .keyboard, .hud, .menu { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* Paints the strip under the phone's status bar so the pinned timer never shows page content behind it. */
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 10; }
 body {
@@ -113,9 +113,21 @@ input[type=text] {
 .bar-info { font-weight: 800; color: var(--muted); }
 .timer { font-family: var(--display); font-weight: 700; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
 .timer.low { color: var(--danger); }
-.timerbar {
+.timerbar { display: grid; grid-template-columns: 1fr; justify-content: stretch; gap: 6px; }
+/* Multiplayer: timer on the left, everyone else's mini boards on the right, pinned while you scroll. */
+#game.multi .hud {
   position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
-  display: grid; grid-template-columns: 1fr; justify-content: stretch; gap: 6px; padding-block: 6px;
+  display: grid; gap: 10px; padding-block: 6px;
+}
+.hud.vs { grid-template-columns: auto minmax(0, 1fr); }
+.hud.vs .timerbar { align-content: space-between; }
+.hud.vs .tb { flex-direction: column; align-items: flex-start; gap: 2px; }
+.me-line { font-size: 0.8rem; font-weight: 800; color: var(--muted); white-space: nowrap; }
+.me-line b { color: var(--ink); }
+.flash {
+  position: absolute; left: 50%; top: calc(100% - 2px); transform: translateX(-50%); white-space: nowrap;
+  background: var(--hit); color: var(--on-color); font-weight: 800; font-size: 0.9rem; padding: 5px 14px; border-radius: 999px;
+  animation: pop 0.3s;
 }
 .timerbar .tb { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .timerbar .timer { font-size: 2.6rem; line-height: 1; }
@@ -124,14 +136,34 @@ input[type=text] {
 .progress i { display: block; height: 100%; background: var(--hit); border-radius: inherit; transition: width 0.25s linear; }
 .progress.low i { background: var(--danger); }
 #game.multi #howto { display: none; }
-.opps { display: flex; gap: 8px; overflow-x: auto; }
+.opps { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.opps::-webkit-scrollbar { display: none; }
+.opp:first-child { margin-left: auto; }
 .opp {
-  flex: none; display: flex; gap: 6px; align-items: center; font-size: 0.8rem; font-weight: 800; color: var(--muted);
-  background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
+  flex: none; width: 68px; display: grid; gap: 4px; justify-items: center; align-content: start; padding: 5px 3px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; font-size: 0.72rem; font-weight: 800; color: var(--muted);
 }
-.mini { display: flex; gap: 2px; }
-.mini i { width: 8px; height: 8px; border-radius: 2px; background: var(--line); }
-.mini i.hit { background: var(--hit); } .mini i.near { background: var(--near); } .mini i.miss { background: var(--miss); }
+.opp .nm { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.opp .sc { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.opp.won { border-color: var(--hit); box-shadow: inset 0 0 0 1px var(--hit); }
+.opp.lost { opacity: 0.55; }
+.up { color: var(--hit); } .down { color: var(--danger); }
+.minigrid { display: grid; grid-template-columns: repeat(var(--len), 8px); gap: 2px; }
+.minigrid i { width: 8px; height: 8px; border-radius: 2px; background: var(--line); }
+.minigrid i.hit, .rv-grid i.hit { background: var(--hit); }
+.minigrid i.near, .rv-grid i.near { background: var(--near); }
+.minigrid i.miss, .rv-grid i.miss { background: var(--miss); }
+/* Between words: everyone's board, with letters once the word is revealed. */
+.rv { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.rv-who { display: grid; gap: 6px; justify-items: center; align-content: start; background: var(--bg); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.rv-who.me { box-shadow: inset 0 0 0 2px var(--accent); }
+.rv-who b { overflow-wrap: anywhere; }
+.rv-grid { display: grid; grid-template-columns: repeat(var(--len), 22px); gap: 3px; }
+.rv-grid i {
+  width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center; background: var(--line);
+  font: 700 0.8rem var(--display); font-style: normal; text-transform: uppercase; color: var(--on-color);
+}
+.rv-pts { font-family: var(--display); font-size: 1.1rem; }
 
 .status { min-height: 1.5em; text-align: center; font-weight: 800; color: var(--muted); }
 .board { display: grid; gap: 7px; justify-content: center; }
@@ -149,7 +181,8 @@ input[type=text] {
   .board { --tile: max(30px, min(16vw, 62px, calc((100dvh - var(--chrome)) / var(--rows, 6) - 7px))); }
   .board.four { --tile: max(30px, min(19vw, 66px, calc((100dvh - var(--chrome)) / var(--rows, 6) - 7px))); }
 }
-#game.multi .board { --chrome: 420px; }
+#game.multi .board { --chrome: 470px; }
+#game.multi .hud.vs ~ .board { --chrome: 500px; }
 .tile.filled { border-color: var(--muted); animation: pop 0.12s; }
 .tile.hit, .tile.near, .tile.miss { color: var(--on-color); border-color: transparent; }
 .tile.hit { background: var(--hit); }
@@ -195,6 +228,26 @@ table.score tr.me td { font-weight: 800; }
 .podium b { overflow-wrap: anywhere; }
 .medal { font-size: 1.6rem; }
 .wordlist { display: grid; gap: 8px; }
+/* Home menu: one big button per way to play. */
+.menu { display: grid; gap: 10px; }
+.tile-btn {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; font: inherit;
+  transition: transform 0.1s, border-color 0.15s;
+}
+.tile-btn:hover { border-color: var(--accent); }
+.tile-btn:active { transform: scale(0.98); }
+.tile-btn .ico { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 1.7rem; background: var(--bg); }
+.tile-btn b { display: block; font-family: var(--display); font-weight: 600; font-size: 1.25rem; }
+.tile-btn small { display: block; color: var(--muted); font-size: 0.92rem; font-weight: 600; margin-top: 2px; line-height: 1.3; }
+.tile-btn .go { margin-left: auto; color: var(--muted); font-size: 1.4rem; }
+.tile-btn[data-go="solo"] .ico { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.tile-btn[data-go="live"] .ico { background: color-mix(in srgb, var(--hit) 24%, transparent); }
+.tile-btn[data-go="async"] .ico { background: color-mix(in srgb, var(--near) 24%, transparent); }
+.tile-btn[data-go="join"] .ico { background: color-mix(in srgb, var(--star) 24%, transparent); }
+.back { justify-self: start; padding: 6px 12px; }
+.diff { display: grid; gap: 10px; }
+.diff .primary small { display: block; font-weight: 600; font-size: 0.85rem; opacity: 0.85; }
 .wordrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg); border-radius: 10px; flex-wrap: wrap; }
 
 .toast {
@@ -223,28 +276,37 @@ table.score tr.me td { font-weight: 800; }
   <!-- Home -->
   <section class="screen" id="home" hidden>
     <div class="card" id="rejoin" hidden></div>
-    <div class="card">
-      <h2>Play solo</h2>
-      <p>Practice on your own. Fewer guesses earn more points.</p>
-      <div class="row-btns">
-        <button class="primary" data-solo="easy">Easy</button>
-        <button class="primary" data-solo="normal">Normal</button>
-        <button class="primary" data-solo="hard">Hard</button>
-      </div>
+    <div class="menu" id="menu">
+      <button class="tile-btn" data-go="solo"><span class="ico" aria-hidden="true">🎯</span><span><b>Play solo</b><small>Practice on your own. Fewer guesses, more points.</small></span><span class="go" aria-hidden="true">›</span></button>
+      <button class="tile-btn" data-go="live"><span class="ico" aria-hidden="true">⚡</span><span><b>Head to head</b><small>Race friends live on the same words. Watch their boards fill in.</small></span><span class="go" aria-hidden="true">›</span></button>
+      <button class="tile-btn" data-go="async"><span class="ico" aria-hidden="true">📬</span><span><b>Send a challenge</b><small>Friends play the same words whenever they like.</small></span><span class="go" aria-hidden="true">›</span></button>
+      <button class="tile-btn" data-go="join"><span class="ico" aria-hidden="true">🔑</span><span><b>Join a game</b><small>Got a 4-letter code from a friend? Start here.</small></span><span class="go" aria-hidden="true">›</span></button>
       <div class="stats" id="solo-stats"></div>
     </div>
-    <div class="card">
-      <h2>Play with friends</h2>
-      <p>Everyone plays the same words on their own phone. No accounts needed.</p>
+    <div class="card" id="p-solo" hidden>
+      <button class="ghost back" data-back>‹ Back</button>
+      <h2>Play solo</h2>
+      <p>Pick how hard. Fewer guesses earn more points.</p>
+      <div class="diff">
+        <button class="primary" data-solo="easy">Easy<small>4-letter words · 7 tries</small></button>
+        <button class="primary" data-solo="normal">Normal<small>5-letter words · 6 tries · 1.5× points</small></button>
+        <button class="primary" data-solo="hard">Hard<small>Tricky grown-up words · 2× points</small></button>
+      </div>
+    </div>
+    <div class="card" id="p-friends" hidden>
+      <button class="ghost back" data-back>‹ Back</button>
+      <h2 id="friends-title"></h2>
+      <p id="friends-note"></p>
       <label class="field" for="name">Your name
         <input type="text" id="name" maxlength="20" autocomplete="nickname" placeholder="e.g. Maya">
       </label>
-      <button class="primary" id="host-btn">Host a game</button>
-      <div class="or">or join one</div>
-      <label class="field" for="join-code">Game code
-        <input type="text" id="join-code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD">
-      </label>
-      <button class="primary" id="join-btn">Join game</button>
+      <div class="setting" id="join-part">
+        <label class="field" for="join-code">Game code
+          <input type="text" id="join-code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD">
+        </label>
+        <button class="primary" id="join-btn">Join game</button>
+      </div>
+      <button class="primary" id="host-btn">Create game</button>
     </div>
   </section>
 
@@ -270,8 +332,11 @@ table.score tr.me td { font-weight: 800; }
 
   <!-- Game board (solo and multiplayer) -->
   <section class="screen" id="game" hidden>
-    <div class="bar" id="game-bar"></div>
-    <div class="opps" id="opps" hidden></div>
+    <div class="hud" id="hud">
+      <div class="bar" id="game-bar"></div>
+      <div class="opps" id="opps" hidden></div>
+      <div class="flash" id="flash" role="status" hidden></div>
+    </div>
     <details class="howto" id="howto">
       <summary>How to play</summary>
       <p>Guess the secret word. Type a real word and press <b>Enter</b>. The tiles change color to give you clues.</p>
@@ -570,9 +635,38 @@ function finishSolo(won) {
   $("again").onclick = () => newSolo(game.mode);
 }
 
+const MENU = {
+  live: ["Head to head", "Everyone plays each word at the same time on their own phone. You'll see each other's boards fill in, and the scores update live.", "Create game"],
+  async: ["Send a challenge", "Everyone gets the same words and plays them whenever they like before the challenge closes.", "Create challenge"],
+  join: ["Join a game", "Type your name and the 4-letter code your friend gave you.", ""],
+};
+let homeMode = null;
+function homePanel(go) {
+  homeMode = go;
+  $("menu").hidden = !!go;
+  $("p-solo").hidden = go !== "solo";
+  $("p-friends").hidden = !MENU[go];
+  if (MENU[go]) {
+    const [title, note, btn] = MENU[go];
+    $("friends-title").textContent = title;
+    $("friends-note").textContent = note;
+    $("join-part").hidden = go !== "join";
+    $("host-btn").hidden = go === "join";
+    $("host-btn").textContent = btn;
+    if (!$("name").value) $("name").focus(); else if (go === "join") $("join-code").focus();
+  }
+  window.scrollTo(0, 0);
+}
+$("home").addEventListener("click", e => {
+  const g = e.target.closest("[data-go]");
+  if (g) homePanel(g.dataset.go);
+  else if (e.target.closest("[data-back]")) homePanel(null);
+});
+
 function renderHome() {
   const s = soloStats;
-  $("solo-stats").textContent = s.played ? `${fmt(s.points)} points · Won ${s.won} of ${s.played} · Best game ${fmt(s.bestGame)}` : "";
+  $("solo-stats").textContent = s.played ? `Solo: ${fmt(s.points)} points · Won ${s.won} of ${s.played} · Best game ${fmt(s.bestGame)}` : "";
+  homePanel(null);
   $("name").value = $("name").value || load("wordhunt-name", "");
   const saved = load("wordhunt-room", null);
   const rj = $("rejoin");
@@ -618,8 +712,12 @@ function playerName() {
 
 $("host-btn").onclick = async () => {
   const name = playerName(); if (!name) return;
-  try { const code = await rpc("wordhunt_create_room", { p_token: TOKEN, p_name: name }); enterRoom(code); }
-  catch (e) { toast(e.message); }
+  const mode = homeMode === "async" ? "async" : "live";
+  try {
+    const code = await rpc("wordhunt_create_room", { p_token: TOKEN, p_name: name });
+    await enterRoom(code);
+    if (S && S.room.mode !== mode) { S.room.mode = mode; renderLobby(); await pushSettings(); }
+  } catch (e) { toast(e.message); }
 };
 $("join-btn").onclick = async () => {
   const name = playerName(); if (!name) return;
@@ -677,15 +775,23 @@ function roundOver(rd) {
   if (now() > roundEnd(rd) + 2500) return true;
   return S.players.every(p => playOf(p.id, rd)?.finished);
 }
-function totals() {
+function totals(upTo = Infinity) {
   const t = Object.fromEntries(S.players.map(p => [p.id, { id: p.id, name: p.name, points: 0, solved: 0, played: 0, guesses: 0 }]));
   for (const p of S.plays) {
-    const row = t[p.id]; if (!row || !p.finished) continue;
+    const row = t[p.id]; if (!row || !p.finished || p.round > upTo) continue;
     row.points += p.points; row.played++;
     if (p.solved) { row.solved++; row.guesses += p.attempts; }
   }
   return Object.values(t).sort((a, b) => b.points - a.points || b.solved - a.solved || a.guesses - b.guesses);
 }
+// Place for each player; ties on points share a place.
+function ranks(list) {
+  const r = {};
+  list.forEach((t, i) => { r[t.id] = i && t.points === list[i - 1].points ? r[list[i - 1].id] : i + 1; });
+  return r;
+}
+const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : { 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th");
+const moveMark = d => d > 0 ? ` <span class="up">▲${d}</span>` : d < 0 ? ` <span class="down">▼${-d}</span>` : "";
 function resultText(p) {
   if (!p) return S.room.mode === "async" && S.room.status === "playing" ? "Not played yet" : "Didn't play";
   if (!p.finished) return `Playing · ${p.attempts} ${p.attempts === 1 ? "guess" : "guesses"}`;
@@ -706,10 +812,12 @@ function roundTable(rd) {
     { h: "Points", num: true, v: r => r.play?.finished ? fmt(r.play.points) : "–" },
   ]);
 }
-function totalsTable() {
-  return scoreTable(totals(), [
-    { h: "#", v: (r, i) => i + 1 },
-    { h: "Player", v: r => esc(r.name) + (r.id === S.me.id ? " (you)" : "") },
+function totalsTable(since) {
+  const list = totals(), place = ranks(list);
+  const before = since ? ranks(totals(since)) : null;
+  return scoreTable(list, [
+    { h: "#", v: r => place[r.id] },
+    { h: "Player", v: r => esc(r.name) + (r.id === S.me.id ? " (you)" : "") + (before ? moveMark(before[r.id] - place[r.id]) : "") },
     { h: "Solved", num: true, v: r => `${r.solved}/${S.room.rounds}` },
     { h: "Points", num: true, v: r => fmt(r.points) },
   ]);
@@ -756,7 +864,7 @@ function renderLobby() {
   setHTML($("settings"), `
     <h2>Settings</h2>
     ${host ? "" : `<p>${esc(hostName())} is choosing the settings.</p>`}
-    <div class="setting"><span>How to play</span>${seg("mode", [["live", "Live: all at once"], ["async", "Async: anytime"]], r.mode, !host)}
+    <div class="setting"><span>How to play</span>${seg("mode", [["live", "Head to head"], ["async", "Challenge"]], r.mode, !host)}
       <div class="note">${r.mode === "live"
         ? "Everyone plays each word at the same time. The host starts each word."
         : "Everyone plays the same words whenever they like before the game closes."}</div></div>
@@ -776,14 +884,17 @@ $("settings").addEventListener("click", async e => {
   if (!b || !isHost()) return;
   const v = b.dataset.val;
   S.room[b.dataset.set] = v === "true" ? true : v === "false" ? false : /^\d+$/.test(v) ? +v : v;
-  settingsHold = Date.now() + 2500;
   renderLobby();
+  await pushSettings();
+});
+async function pushSettings() {
+  settingsHold = Date.now() + 2500;
   const r = S.room;
   try {
     await rpc("wordhunt_update_room", { p_code: r.code, p_token: TOKEN, p_mode: r.mode, p_difficulty: r.difficulty,
       p_rounds: r.rounds, p_seconds: r.seconds, p_hints: r.hints, p_window_hours: r.window_hours });
   } catch (err) { toast(err.message); }
-});
+}
 $("start-btn").onclick = async () => {
   try { $("start-btn").disabled = true; await rpc("wordhunt_start", { p_code: room, p_token: TOKEN }); await refresh(); }
   catch (e) { toast(e.message); }
@@ -825,6 +936,8 @@ function startMultiBoard() {
   $("howto").open = false;
   $("game").classList.add("multi");
   $("game-bar").classList.add("timerbar");
+  // Don't announce solves that happened before this phone opened the word.
+  S.plays.forEach(p => { if (p.finished) seenFinished.add(p.id + ":" + p.round); });
   setStatus("");
   show("game");
   window.scrollTo(0, 0);
@@ -833,18 +946,39 @@ function startMultiBoard() {
   tick();
 }
 
+let lastRank = {}, rankMove = {}, seenFinished = new Set();
+function flash(msg) {
+  const f = $("flash"); f.textContent = msg; f.hidden = false;
+  clearTimeout(flash.timer); flash.timer = setTimeout(() => f.hidden = true, 3000);
+}
+
+// Everyone else's board in the corner: colors only, never letters.
 function renderOpps() {
-  const live = S.room.mode === "live";
-  $("opps").hidden = !live || S.players.length < 2;
-  if (!live) return;
-  const len = S.room.word_len;
-  setHTML($("opps"), S.players.filter(p => p.id !== S.me.id).map(p => {
-    const play = playOf(p.id, game.round);
+  const vs = S.room.mode === "live" && S.players.length > 1;
+  $("opps").hidden = !vs;
+  $("hud").classList.toggle("vs", vs);
+  if (!vs) return;
+  const len = S.room.word_len, tries = S.room.tries, rd = game.round, t = Date.now();
+  const list = totals(), place = ranks(list);
+  for (const p of list) {
+    if (lastRank[p.id] && lastRank[p.id] !== place[p.id]) rankMove[p.id] = { up: place[p.id] < lastRank[p.id], until: t + 4000 };
+    lastRank[p.id] = place[p.id];
+  }
+  for (const p of S.plays) {
+    const key = p.id + ":" + p.round;
+    if (p.round !== rd || !p.finished || seenFinished.has(key)) continue;
+    seenFinished.add(key);
+    if (p.id !== S.me.id && p.solved) flash(`${nameOf(p.id)} solved it in ${p.attempts}! +${fmt(p.points)}`);
+  }
+  setHTML($("opps"), list.filter(p => p.id !== S.me.id).map(p => {
+    const play = playOf(p.id, rd);
     const pats = play?.patterns || [];
-    const last = pats[pats.length - 1] || "";
-    const mini = Array.from({ length: len }, (_, c) => `<i class="${last ? PAT[last[c]] : ""}"></i>`).join("");
-    const state = play?.solved ? "✓" : play?.finished ? "✗" : `${pats.length}/${S.room.tries}`;
-    return `<div class="opp"><span>${esc(p.name)}</span><span class="mini">${mini}</span><span>${state}</span></div>`;
+    const cells = Array.from({ length: tries }, (_, row) =>
+      Array.from({ length: len }, (_, c) => `<i class="${pats[row] ? PAT[pats[row][c]] : ""}"></i>`).join("")).join("");
+    const mv = rankMove[p.id]?.until > t ? (rankMove[p.id].up ? `<span class="up">▲</span>` : `<span class="down">▼</span>`) : "";
+    return `<div class="opp ${play?.solved ? "won" : play?.finished ? "lost" : ""}">
+      <span class="nm">${esc(p.name)}</span><span class="minigrid" style="--len:${len}">${cells}</span>
+      <span class="sc">${mv}${ord(place[p.id])} · ${fmt(p.points)}</span></div>`;
   }).join(""));
 }
 
@@ -876,7 +1010,12 @@ function timeUp() {
 function timerBar(label, left) {
   const low = left < 15000 ? "low" : "";
   const pct = Math.max(0, Math.min(100, left / (S.room.seconds * 10)));
-  return `<div class="tb"><span class="bar-info">${label}</span><span class="timer ${low}" role="timer" aria-label="${mmss(left)} left">${mmss(left)}</span></div>
+  let me = "";
+  if (S.room.mode === "live" && S.players.length > 1) {
+    const list = totals(), mine = list.find(t => t.id === S.me.id);
+    me = `<span class="me-line">You: <b>${ord(ranks(list)[S.me.id])}</b> · ${fmt(mine?.points || 0)}</span>`;
+  }
+  return `<div class="tb"><span class="bar-info">${label}</span><span class="timer ${low}" role="timer" aria-label="${mmss(left)} left">${mmss(left)}</span>${me}</div>
     <div class="progress ${low}"><i style="width:${pct.toFixed(1)}%"></i></div>`;
 }
 
@@ -921,9 +1060,9 @@ function renderLiveRound(rd) {
       ${word ? `<div class="big-word">${word}</div>` : `<p>The word is shown when the round ends.</p>`}
       ${me}
     </div>
-    <div class="card"><h2>This word</h2>${roundTable(rd)}</div>
     ${action}
-    <div class="card"><h2>Scoreboard</h2>${totalsTable()}</div>`);
+    <div class="card"><h2>Standings</h2>${totalsTable(rd > 1 ? rd - 1 : 0)}</div>
+    <div class="card"><h2>How everyone played</h2>${revealBoards(rd)}</div>`);
   const nb = $("next-btn");
   if (nb) nb.onclick = async () => {
     nb.disabled = true;
@@ -931,6 +1070,23 @@ function renderLiveRound(rd) {
     catch (e) { toast(e.message); nb.disabled = false; }
   };
   if (current !== "results") show("results");
+}
+
+// Each player's board for one word. Letters show once the server reveals them; until then, colors only.
+function revealBoards(rd) {
+  const len = S.room.word_len;
+  const rows = S.players.map(p => ({ p, play: playOf(p.id, rd) }))
+    .sort((a, b) => (b.play?.points || 0) - (a.play?.points || 0) || (b.play?.attempts || 0) - (a.play?.attempts || 0));
+  return `<div class="rv">${rows.map(({ p, play }) => {
+    const pats = play?.patterns || [], words = play?.guesses || [];
+    const grid = pats.map((pat, i) => Array.from({ length: len }, (_, c) =>
+      `<i class="${PAT[pat[c]]}">${words[i] ? esc(words[i][c]) : ""}</i>`).join("")).join("");
+    return `<div class="rv-who ${p.id === S.me.id ? "me" : ""}">
+      <b>${esc(p.name)}${p.id === S.me.id ? " (you)" : ""}</b>
+      ${grid ? `<div class="rv-grid" style="--len:${len}">${grid}</div>` : ""}
+      <span class="result-note">${resultText(play)}</span>
+      ${play?.finished ? `<span class="rv-pts">+${fmt(play.points)}</span>` : ""}</div>`;
+  }).join("")}</div>`;
 }
 
 function timeLeftText(ms) {
@@ -1001,7 +1157,8 @@ function renderFinal() {
   if (code && code === saved) { enterRoom(code); return; }
   if (code) {
     $("join-code").value = code;
-    if ($("name").value) $("join-btn").focus(); else $("name").focus();
+    homePanel("join");
+    if ($("name").value) $("join-btn").focus();
     toast(`Type your name and tap Join to play game ${code}.`);
   }
 })();
