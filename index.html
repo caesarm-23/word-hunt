@@ -175,6 +175,8 @@ input[type=text] {
 .stars span.on { color: var(--star); animation: starpop 0.4s both; }
 .points-won { font-family: var(--display); font-size: 1.8rem; color: var(--ink); }
 .stats { color: var(--muted); font-variant-numeric: tabular-nums; }
+#newgame { white-space: nowrap; min-width: 6.5em; }
+#newgame.armed { color: var(--on-color); background: var(--near); border-color: transparent; }
 .tools { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .countdown { font-family: var(--display); font-size: 4rem; text-align: center; color: var(--accent); line-height: 1; }
 
@@ -286,7 +288,6 @@ table.score tr.me td { font-weight: 800; }
     <div class="keyboard" id="keyboard"></div>
     <div class="tools">
       <button class="ghost" id="hint">Give me a hint (−100)</button>
-      <button class="ghost" id="newgame">New word</button>
     </div>
   </section>
 
@@ -475,7 +476,6 @@ document.addEventListener("keydown", e => {
 });
 $("keyboard").addEventListener("click", e => { const b = e.target.closest(".key"); if (b) { press(b.dataset.k); b.blur(); } });
 $("hint").onclick = e => { hint(); e.currentTarget.blur(); };
-$("newgame").onclick = e => { newSolo(game.mode); e.currentTarget.blur(); };
 
 // ---- Solo -------------------------------------------------------------------
 function soloPoints(n, mode, hints, streak) {
@@ -490,12 +490,12 @@ function newSolo(mode) {
            guesses: [], current: "", finished: false, hintsUsed: [] };
   leaveRoom(true);
   setHTML($("game-bar"), `<div class="seg" role="group" aria-label="Difficulty" style="flex:1">${["easy", "normal", "hard"].map(m =>
-    `<button data-mode="${m}" aria-pressed="${m === mode}">${LABEL[m]}</button>`).join("")}</div>`);
+    `<button data-mode="${m}" aria-pressed="${m === mode}">${LABEL[m]}</button>`).join("")}</div>
+    <button class="ghost" id="newgame">New word</button>`);
   $("opps").hidden = true;
   $("game").classList.remove("multi");
   $("game-bar").classList.remove("timerbar");
   $("end").hidden = true;
-  $("newgame").hidden = false;
   $("hint").hidden = false;
   setStatus(`Find the ${len}-letter word. You have ${TRIES[len]} tries.`);
   show("game");
@@ -503,7 +503,17 @@ function newSolo(mode) {
 }
 $("game-bar").addEventListener("click", e => {
   const b = e.target.closest("button[data-mode]");
-  if (b) { newSolo(b.dataset.mode); b.blur(); }
+  if (b) { newSolo(b.dataset.mode); b.blur(); return; }
+  const n = e.target.closest("#newgame");
+  if (!n) return;
+  // Mid-game, the first tap only arms the button so a stray tap can't throw the word away.
+  if (game.guesses.length && !game.finished && !n.classList.contains("armed")) {
+    n.classList.add("armed");
+    n.textContent = "Tap again";
+    setTimeout(() => { n.classList.remove("armed"); n.textContent = "New word"; }, 3000);
+    return;
+  }
+  newSolo(game.mode);
 });
 
 function soloGuess(word) {
@@ -798,7 +808,6 @@ async function openRound(rd) {
 
 function startMultiBoard() {
   $("end").hidden = true;
-  $("newgame").hidden = true;
   $("hint").hidden = !S.room.hints;
   $("howto").open = false;
   $("game").classList.add("multi");
