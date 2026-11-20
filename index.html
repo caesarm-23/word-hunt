@@ -177,6 +177,7 @@ input[type=text] {
 .stats { color: var(--muted); font-variant-numeric: tabular-nums; }
 #newgame { white-space: nowrap; min-width: 6.5em; }
 #newgame.armed { color: var(--on-color); background: var(--near); border-color: transparent; }
+#hint:disabled { opacity: 0.45; cursor: default; }
 .tools { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .countdown { font-family: var(--display); font-size: 4rem; text-align: center; color: var(--accent); line-height: 1; }
 
@@ -279,7 +280,7 @@ table.score tr.me td { font-weight: 800; }
         <div><span class="tile near">A</span><span><b>Orange</b> means the letter is in the word, but in a <b>different</b> spot.</span></div>
         <div><span class="tile miss">T</span><span><b>Gray</b> means that letter is <b>not</b> in the word at all. It turns red on the keyboard so you know not to use it again.</span></div>
       </div>
-      <p><b>Points:</b> the fewer guesses you take, the more you earn. Normal is worth 1.5×, Hard 2×. Each hint costs 100.</p>
+      <p><b>Points:</b> the fewer guesses you take, the more you earn. Normal is worth 1.5×, Hard 2×. Each hint costs 200. You get up to 2 hints per word, after your first guess.</p>
       <div class="pts" id="pts-table"></div>
     </details>
     <div class="status" id="status" aria-live="polite"></div>
@@ -287,7 +288,7 @@ table.score tr.me td { font-weight: 800; }
     <div class="card end" id="end" hidden></div>
     <div class="keyboard" id="keyboard"></div>
     <div class="tools">
-      <button class="ghost" id="hint">Give me a hint (−100)</button>
+      <button class="ghost" id="hint">Hint (−200)</button>
     </div>
   </section>
 
@@ -312,6 +313,7 @@ const PRAISE = ["Psychic! First try!", "Genius!", "Super smart!", "Great job!", 
 const RANK = { miss: 1, near: 2, hit: 3 };
 const PAT = { h: "hit", n: "near", m: "miss" };
 const STAR_MAX = 5;
+const HINT_COST = 200, MAX_HINTS = 2;
 const PLACE = ["first", "second", "third", "fourth", "fifth"];
 
 function load(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } }
@@ -452,6 +454,8 @@ function nextHintPos() {
 
 async function hint() {
   if (!game || game.finished || game.busy || game.locked) return;
+  if (!game.guesses.length) { setStatus("Make a guess first. Hints unlock after your first try."); return; }
+  if (game.hintsUsed.length >= MAX_HINTS) { setStatus(`No hints left. You only get ${MAX_HINTS} per word.`); return; }
   const i = nextHintPos();
   if (i < 0) { setStatus("You already know every letter. Put them together!"); return; }
   let letter;
@@ -462,7 +466,14 @@ async function hint() {
     finally { game.busy = false; }
   }
   game.hintsUsed.push(i);
-  setStatus(`Hint: the ${PLACE[i]} letter is "${letter.toUpperCase()}". (−100 points)`);
+  setStatus(`Hint: the ${PLACE[i]} letter is "${letter.toUpperCase()}". (−${HINT_COST} points)`);
+  setHintLabel();
+}
+
+function setHintLabel() {
+  const left = MAX_HINTS - game.hintsUsed.length;
+  $("hint").textContent = `Hint (−${HINT_COST}) · ${left} left`;
+  $("hint").disabled = left <= 0;
 }
 
 document.addEventListener("keydown", e => {
@@ -479,7 +490,7 @@ $("hint").onclick = e => { hint(); e.currentTarget.blur(); };
 
 // ---- Solo -------------------------------------------------------------------
 function soloPoints(n, mode, hints, streak) {
-  const base = Math.max(10, Math.round(BASE[Math.min(n, 7) - 1] * MULT[mode]) - 100 * hints);
+  const base = Math.max(10, Math.round(BASE[Math.min(n, 7) - 1] * MULT[mode]) - HINT_COST * hints);
   return { base, bonus: Math.min(250, 50 * Math.max(0, streak - 1)) };
 }
 
@@ -497,6 +508,7 @@ function newSolo(mode) {
   $("game-bar").classList.remove("timerbar");
   $("end").hidden = true;
   $("hint").hidden = false;
+  setHintLabel();
   setStatus(`Find the ${len}-letter word. You have ${TRIES[len]} tries.`);
   show("game");
   renderBoard();
@@ -752,7 +764,7 @@ function renderLobby() {
       <div class="note">${{ easy: "4-letter kid words, 7 tries.", normal: "5-letter kid words, 6 tries. Worth 1.5×.", hard: "Tricky 5-letter words for grown-ups. Worth 2×." }[r.difficulty]}</div></div>
     <div class="setting"><span>Time per word</span>${seg("seconds", [[60, "1 min"], [120, "2 min"], [180, "3 min"]], r.seconds, !host)}</div>
     <div class="setting"><span>Words</span>${seg("rounds", [[3, "3"], [5, "5"], [10, "10"]], r.rounds, !host)}</div>
-    <div class="setting"><span>Hints</span>${seg("hints", [[true, "On (−100 each)"], [false, "Off"]], r.hints, !host)}</div>
+    <div class="setting"><span>Hints</span>${seg("hints", [[true, "On (2 max, −200 each)"], [false, "Off"]], r.hints, !host)}</div>
     ${r.mode === "async" ? `<div class="setting"><span>Game stays open for</span>${seg("window_hours", [[1, "1 hour"], [24, "1 day"], [168, "1 week"]], r.window_hours, !host)}</div>` : ""}`);
   $("start-btn").hidden = !host;
   $("start-btn").textContent = r.mode === "live" ? "Start game" : "Open the challenge";
@@ -791,7 +803,7 @@ async function openRound(rd) {
     const p = await rpc("wordhunt_open_round", { p_code: room, p_token: TOKEN, p_round: rd });
     const len = S.room.word_len;
     game = {
-      kind: "multi", round: rd, len, tries: S.room.tries, current: "", hintsUsed: [], busy: false,
+      kind: "multi", round: rd, len, tries: S.room.tries, current: "", hintsUsed: Array(p.hints || 0).fill(-1), busy: false,
       guesses: p.guesses.map((w, i) => ({ word: w, res: p.patterns[i].split("").map(c => PAT[c]) })),
       startMs: Date.parse(p.started_at), endMs: Date.parse(p.started_at) + S.room.seconds * 1000,
       finished: p.finished, solved: p.solved, points: p.points, word: p.word,
@@ -809,6 +821,7 @@ async function openRound(rd) {
 function startMultiBoard() {
   $("end").hidden = true;
   $("hint").hidden = !S.room.hints;
+  setHintLabel();
   $("howto").open = false;
   $("game").classList.add("multi");
   $("game-bar").classList.add("timerbar");
